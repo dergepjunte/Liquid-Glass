@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Liquid Glass — Apple Music Tab Bar Demo</title>
+<style>
+  :root {
+    --pink: #fa243c;
+    --pink-soft: rgba(250, 36, 60, 0.85);
+    --glass-bg: rgba(255, 255, 255, 0.08);
+    --glass-border: rgba(255, 255, 255, 0.22);
+    --glass-highlight: rgba(255, 255, 255, 0.55);
+    --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #0b0b0d;
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+    min-height: 100%;
+  }
+
+  body {
+    padding-bottom: 140px;
+  }
+
+  /* ---------- background content ---------- */
+
+  .hero {
+    padding: 64px 24px 24px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .hero h1 {
+    font-size: clamp(2rem, 6vw, 3.5rem);
+    font-weight: 800;
+    margin: 0 0 8px;
+    letter-spacing: -0.02em;
+  }
+
+  .hero p {
+    font-size: 1.05rem;
+    color: rgba(255, 255, 255, 0.6);
+    margin: 0;
+    max-width: 560px;
+  }
+
+  .section {
+    display: none;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 8px 24px 48px;
+  }
+
+  .section.active {
+    display: block;
+    animation: fadeIn 0.35s ease both;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .section h2 {
+    font-size: 1.4rem;
+    margin: 24px 0 16px;
+    font-weight: 700;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 18px;
+  }
+
+  .card {
+    aspect-ratio: 1;
+    border-radius: 16px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+    transition: transform 0.25s ease;
+  }
+
+  .card:hover { transform: scale(1.03); }
+
+  .card::after {
+    content: attr(data-title);
+    position: absolute;
+    left: 10px;
+    bottom: 10px;
+    right: 10px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.92);
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+  }
+
+  .c1  { background: linear-gradient(135deg, #ff5f6d, #ffc371); }
+  .c2  { background: linear-gradient(135deg, #36d1dc, #5b86e5); }
+  .c3  { background: linear-gradient(135deg, #a18cd1, #fbc2eb); }
+  .c4  { background: linear-gradient(135deg, #f7971e, #ffd200); }
+  .c5  { background: linear-gradient(135deg, #ee0979, #ff6a00); }
+  .c6  { background: linear-gradient(135deg, #43cea2, #185a9d); }
+  .c7  { background: linear-gradient(135deg, #7f00ff, #e100ff); }
+  .c8  { background: linear-gradient(135deg, #f857a6, #ff5858); }
+  .c9  { background: linear-gradient(135deg, #00c6ff, #0072ff); }
+  .c10 { background: linear-gradient(135deg, #f2994a, #f2c94c); }
+  .c11 { background: linear-gradient(135deg, #8e2de2, #4a00e0); }
+  .c12 { background: linear-gradient(135deg, #11998e, #38ef7d); }
+  .c13 { background: conic-gradient(from 90deg, #ff5f6d, #a18cd1, #36d1dc, #ff5f6d); }
+  .c14 { background: linear-gradient(135deg, #ff416c, #ff4b2b); }
+  .c15 { background: linear-gradient(135deg, #2193b0, #6dd5ed); }
+  .c16 { background: linear-gradient(135deg, #ee9ca7, #ffdde1); }
+
+  /* ---------- tab bar ---------- */
+
+  .tabbar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    gap: 12px;
+    padding: 0 16px calc(18px + env(safe-area-inset-bottom));
+    pointer-events: none;
+    z-index: 100;
+  }
+
+  .capsule, .search-btn {
+    pointer-events: auto;
+    background: var(--glass-bg);
+    backdrop-filter: blur(24px) saturate(1.7);
+    -webkit-backdrop-filter: blur(24px) saturate(1.7);
+    border: 1px solid var(--glass-border);
+    box-shadow:
+      0 12px 30px rgba(0, 0, 0, 0.45),
+      inset 0 1px 0 rgba(255, 255, 255, 0.25),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.15);
+  }
+
+  .capsule {
+    position: relative;
+    display: flex;
+    width: 100%;
+    max-width: 420px;
+    border-radius: 32px;
+    padding: 8px 6px;
+    gap: 2px;
+  }
+
+  .pill {
+    position: absolute;
+    top: 6px;
+    bottom: 6px;
+    left: 0;
+    border-radius: 24px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.08));
+    box-shadow:
+      inset 0 1.5px 0 rgba(255, 255, 255, 0.9),
+      inset 0 -1px 4px rgba(0, 0, 0, 0.15),
+      0 0 0 1px rgba(255, 255, 255, 0.12),
+      0 0 12px 1px rgba(255, 120, 180, 0.18),
+      0 0 18px 2px rgba(120, 200, 255, 0.12);
+    transform: translateX(0) scaleX(1);
+    transition:
+      transform 0.4s var(--spring),
+      width 0.4s var(--spring);
+    will-change: transform, width;
+    pointer-events: none;
+  }
+
+  .tab {
+    position: relative;
+    z-index: 1;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    background: none;
+    border: none;
+    color: #fff;
+    padding: 8px 4px 7px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    border-radius: 24px;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .tab svg {
+    width: 24px;
+    height: 24px;
+    transition: transform 0.4s var(--spring), color 0.3s ease;
+  }
+
+  .tab span {
+    transition: color 0.3s ease, transform 0.4s var(--spring);
+  }
+
+  .tab:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+  }
+
+  .tab.active {
+    color: var(--pink);
+  }
+
+  .tab.active svg {
+    transform: scale(1.08) translateY(-1px);
+  }
+
+  .tab.active span {
+    transform: scale(1.04);
+  }
+
+  .search-btn {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    cursor: pointer;
+    flex-shrink: 0;
+    margin-bottom: 0;
+  }
+
+  .search-btn svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .search-btn:active {
+    transform: scale(0.94);
+  }
+
+  .search-btn:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+  }
+
+  @media (max-width: 480px) {
+    .tabbar {
+      gap: 10px;
+      padding: 0 10px calc(14px + env(safe-area-inset-bottom));
+    }
+    .capsule {
+      max-width: none;
+      flex: 1;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pill, .tab svg, .tab span, .card {
+      transition-duration: 0.12s !important;
+    }
+    .section.active { animation: none; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="hero">
+    <h1>Liquid Glass</h1>
+    <p>Scroll around, then tap the tabs below — the frosted bar blurs and tints live from whatever's moving underneath it.</p>
+  </div>
+
+  <section class="section active" id="section-home">
+    <h2>Listen Now</h2>
+    <div class="grid">
+      <div class="card c1" data-title="Midnight Drive"></div>
+      <div class="card c2" data-title="Coastal Blue"></div>
+      <div class="card c3" data-title="Soft Focus"></div>
+      <div class="card c4" data-title="Golden Hour"></div>
+      <div class="card c5" data-title="Afterglow"></div>
+      <div class="card c6" data-title="Deep End"></div>
+      <div class="card c7" data-title="Ultraviolet"></div>
+      <div class="card c8" data-title="Heat Signature"></div>
+    </div>
+    <h2>Recently Played</h2>
+    <div class="grid">
+      <div class="card c9" data-title="Northbound"></div>
+      <div class="card c10" data-title="Amber Room"></div>
+      <div class="card c11" data-title="Static & Silk"></div>
+      <div class="card c12" data-title="Evergreen"></div>
+    </div>
+  </section>
+
+  <section class="section" id="section-new">
+    <h2>New Releases</h2>
+    <div class="grid">
+      <div class="card c13" data-title="Prism"></div>
+      <div class="card c14" data-title="Wildfire"></div>
+      <div class="card c15" data-title="Glacier"></div>
+      <div class="card c16" data-title="Rosewater"></div>
+      <div class="card c2" data-title="Nightshift"></div>
+      <div class="card c4" data-title="Marigold"></div>
+    </div>
+  </section>
+
+  <section class="section" id="section-radio">
+    <h2>Stations</h2>
+    <div class="grid">
+      <div class="card c6" data-title="Chill Mix"></div>
+      <div class="card c8" data-title="Focus Flow"></div>
+      <div class="card c11" data-title="Late Night"></div>
+      <div class="card c1" data-title="Road Trip"></div>
+      <div class="card c9" data-title="Deep House"></div>
+      <div class="card c13" data-title="Discover"></div>
+    </div>
+  </section>
+
+  <section class="section" id="section-library">
+    <h2>Your Library</h2>
+    <div class="grid">
+      <div class="card c3" data-title="Saved Albums"></div>
+      <div class="card c5" data-title="Playlists"></div>
+      <div class="card c7" data-title="Artists"></div>
+      <div class="card c10" data-title="Downloaded"></div>
+    </div>
+  </section>
+
+  <nav class="tabbar">
+    <div class="capsule" role="tablist" aria-label="Main">
+      <div class="pill" aria-hidden="true"></div>
+
+      <button class="tab active" role="tab" aria-selected="true" data-tab="home">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3.2 2.8 10.7c-.4.3-.5.9-.1 1.3.2.2.4.3.7.3H5v7c0 .6.4 1 1 1h4v-5.5c0-.6.4-1 1-1h2c.6 0 1 .4 1 1V20h4c.6 0 1-.4 1-1v-7h1.6c.4 0 .8-.2 1-.6.2-.4.1-.9-.3-1.1L12 3.2z"/></svg>
+        <span>Home</span>
+      </button>
+
+      <button class="tab" role="tab" aria-selected="false" data-tab="new">
+        <svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="8" height="8" rx="1.6"/><rect x="13" y="3" width="8" height="8" rx="1.6"/><rect x="3" y="13" width="8" height="8" rx="1.6"/><rect x="13" y="13" width="8" height="8" rx="1.6"/></svg>
+        <span>New</span>
+      </button>
+
+      <button class="tab" role="tab" aria-selected="false" data-tab="radio">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="15" r="2.4" fill="currentColor" stroke="none"/><path d="M7.8 10.3a6 6 0 0 1 8.4 0"/><path d="M5 7.5a10 10 0 0 1 14 0"/><path d="M3.2 12A4.8 4.8 0 0 1 12 9.3 4.8 4.8 0 0 1 20.8 12" stroke-opacity="0"/></svg>
+        <span>Radio</span>
+      </button>
+
+      <button class="tab" role="tab" aria-selected="false" data-tab="library">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 3h2v18H4zM9 3h2v18H9z"/><path d="M14.3 3.4 16.2 3l3.6 17.6-1.9.4z"/></svg>
+        <span>Library</span>
+      </button>
+    </div>
+
+    <button class="search-btn" aria-label="Search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.2" y2="16.2"/></svg>
+    </button>
+  </nav>
+
+  <script>
+    (function () {
+      const capsule = document.querySelector('.capsule');
+      const pill = document.querySelector('.pill');
+      const tabs = Array.from(document.querySelectorAll('.tab'));
+      const sections = Array.from(document.querySelectorAll('.section'));
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+      let activeTab = tabs.find((t) => t.classList.contains('active')) || tabs[0];
+      let squashTimeout = null;
+
+      function movePill(tab, opts) {
+        opts = opts || {};
+        const capRect = capsule.getBoundingClientRect();
+        const tabRect = tab.getBoundingClientRect();
+        const offset = tabRect.left - capRect.left;
+        const width = tabRect.width;
+
+        if (opts.instant) {
+          const prevTransition = pill.style.transition;
+          pill.style.transition = 'none';
+          pill.style.width = width + 'px';
+          pill.style.transform = 'translateX(' + offset + 'px) scaleX(1)';
+          // force reflow so the "none" transition actually applies before restoring
+          pill.getBoundingClientRect();
+          pill.style.transition = prevTransition;
+          return;
+        }
+
+        pill.style.width = width + 'px';
+
+        if (!reduceMotion.matches) {
+          const prevOffset = parseFloat(pill.dataset.offset || offset);
+          const dir = offset > prevOffset ? 1 : offset < prevOffset ? -1 : 0;
+          const stretch = dir !== 0 ? 1.14 : 1;
+
+          pill.style.transform = 'translateX(' + offset + 'px) scaleX(' + stretch + ')';
+
+          clearTimeout(squashTimeout);
+          squashTimeout = setTimeout(() => {
+            pill.style.transform = 'translateX(' + offset + 'px) scaleX(1)';
+          }, 160);
+        } else {
+          pill.style.transform = 'translateX(' + offset + 'px) scaleX(1)';
+        }
+
+        pill.dataset.offset = offset;
+      }
+
+      function activate(tab) {
+        if (tab === activeTab) return;
+
+        tabs.forEach((t) => {
+          t.classList.remove('active');
+          t.setAttribute('aria-selected', 'false');
+        });
+        tab.classList.add('active');
+        tab.setAttribute('aria-selected', 'true');
+
+        const name = tab.dataset.tab;
+        sections.forEach((s) => s.classList.toggle('active', s.id === 'section-' + name));
+
+        movePill(tab);
+        activeTab = tab;
+      }
+
+      tabs.forEach((tab) => {
+        tab.addEventListener('click', () => activate(tab));
+      });
+
+      // initial placement (no transition on load)
+      movePill(activeTab, { instant: true });
+      pill.dataset.offset = activeTab.getBoundingClientRect().left - capsule.getBoundingClientRect().left;
+
+      let resizeRaf;
+      window.addEventListener('resize', () => {
+        cancelAnimationFrame(resizeRaf);
+        resizeRaf = requestAnimationFrame(() => movePill(activeTab, { instant: true }));
+      });
+    })();
+  </script>
+</body>
+</html>
