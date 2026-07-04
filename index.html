@@ -172,9 +172,6 @@
       0 0 12px 1px rgba(255, 120, 180, 0.18),
       0 0 18px 2px rgba(120, 200, 255, 0.12);
     transform: translateX(0) scaleX(1);
-    transition:
-      transform 0.4s var(--spring),
-      width 0.4s var(--spring);
     will-change: transform, width;
     pointer-events: none;
   }
@@ -374,44 +371,68 @@
       const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
       let activeTab = tabs.find((t) => t.classList.contains('active')) || tabs[0];
-      let squashTimeout = null;
+      let currentAnimation = null;
 
-      function movePill(tab, opts) {
-        opts = opts || {};
+      function pillGeometry(tab) {
         const capRect = capsule.getBoundingClientRect();
         const tabRect = tab.getBoundingClientRect();
-        const offset = tabRect.left - capRect.left;
-        const width = tabRect.width;
+        return { x: tabRect.left - capRect.left, width: tabRect.width };
+      }
 
-        if (opts.instant) {
-          const prevTransition = pill.style.transition;
-          pill.style.transition = 'none';
-          pill.style.width = width + 'px';
-          pill.style.transform = 'translateX(' + offset + 'px) scaleX(1)';
-          // force reflow so the "none" transition actually applies before restoring
-          pill.getBoundingClientRect();
-          pill.style.transition = prevTransition;
-          return;
-        }
+      function currentPillX() {
+        const capRect = capsule.getBoundingClientRect();
+        const pillRect = pill.getBoundingClientRect();
+        return pillRect.left - capRect.left;
+      }
+
+      // bakes the live (possibly mid-flight) visual position into an inline
+      // style before cancelling, so the next animation starts exactly where
+      // this one visually was instead of snapping back to its start point
+      function freezeCurrentTransform() {
+        if (!currentAnimation) return;
+        const computed = getComputedStyle(pill).transform;
+        pill.style.transform = computed === 'none' ? 'translateX(0px) scaleX(1)' : computed;
+        currentAnimation.cancel();
+        currentAnimation = null;
+      }
+
+      function placePillInstant(tab) {
+        freezeCurrentTransform();
+        const { x, width } = pillGeometry(tab);
+        pill.style.width = width + 'px';
+        pill.style.transform = 'translateX(' + x + 'px) scaleX(1)';
+      }
+
+      function slidePillTo(tab) {
+        freezeCurrentTransform();
+        const from = currentPillX();
+        const { x: to, width } = pillGeometry(tab);
+        const travel = to - from;
 
         pill.style.width = width + 'px';
 
-        if (!reduceMotion.matches) {
-          const prevOffset = parseFloat(pill.dataset.offset || offset);
-          const dir = offset > prevOffset ? 1 : offset < prevOffset ? -1 : 0;
-          const stretch = dir !== 0 ? 1.14 : 1;
-
-          pill.style.transform = 'translateX(' + offset + 'px) scaleX(' + stretch + ')';
-
-          clearTimeout(squashTimeout);
-          squashTimeout = setTimeout(() => {
-            pill.style.transform = 'translateX(' + offset + 'px) scaleX(1)';
-          }, 160);
-        } else {
-          pill.style.transform = 'translateX(' + offset + 'px) scaleX(1)';
+        if (reduceMotion.matches || Math.abs(travel) < 0.5) {
+          pill.style.transform = 'translateX(' + to + 'px) scaleX(1)';
+          return;
         }
 
-        pill.dataset.offset = offset;
+        const stretch = Math.min(1.32, 1 + Math.abs(travel) / 260);
+
+        currentAnimation = pill.animate(
+          [
+            { transform: 'translateX(' + from + 'px) scaleX(1)', offset: 0 },
+            { transform: 'translateX(' + (from + travel * 0.68) + 'px) scaleX(' + stretch + ')', offset: 0.5 },
+            { transform: 'translateX(' + to + 'px) scaleX(1.05)', offset: 0.8 },
+            { transform: 'translateX(' + to + 'px) scaleX(1)', offset: 1 },
+          ],
+          { duration: 420, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'forwards' }
+        );
+
+        currentAnimation.onfinish = () => {
+          pill.style.transform = 'translateX(' + to + 'px) scaleX(1)';
+          pill.style.width = width + 'px';
+          currentAnimation = null;
+        };
       }
 
       function activate(tab) {
@@ -427,7 +448,7 @@
         const name = tab.dataset.tab;
         sections.forEach((s) => s.classList.toggle('active', s.id === 'section-' + name));
 
-        movePill(tab);
+        slidePillTo(tab);
         activeTab = tab;
       }
 
@@ -435,14 +456,12 @@
         tab.addEventListener('click', () => activate(tab));
       });
 
-      // initial placement (no transition on load)
-      movePill(activeTab, { instant: true });
-      pill.dataset.offset = activeTab.getBoundingClientRect().left - capsule.getBoundingClientRect().left;
+      placePillInstant(activeTab);
 
       let resizeRaf;
       window.addEventListener('resize', () => {
         cancelAnimationFrame(resizeRaf);
-        resizeRaf = requestAnimationFrame(() => movePill(activeTab, { instant: true }));
+        resizeRaf = requestAnimationFrame(() => placePillInstant(activeTab));
       });
     })();
   </script>
